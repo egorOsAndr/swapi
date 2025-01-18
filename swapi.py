@@ -23,8 +23,11 @@ class APIRequester:
         endpoint: str = ''
     ) -> Optional[requests.Response]:
         try:
-            full_url = self.base_url.rstrip('/') + '/' + endpoint.lstrip('/')
-            response = requests.get(full_url)
+            full_url: str = (
+                self.base_url.rstrip('/')
+                + '/' + endpoint.lstrip('/')
+            )
+            response: requests.Response = requests.get(full_url)
             response.raise_for_status()
 
         except requests.HTTPError as e:
@@ -54,6 +57,45 @@ class APIRequester:
             return response
 
 
-URL = 'https://swapi.dev/api/people/'
-api_swapi = APIRequester(URL)
-print(api_swapi.get())
+class SWRequester(APIRequester):
+    def __init__(self):
+        super().__init__('https://swapi.dev/api/')
+
+    def get_sw_categories(self) -> list:
+        response: Optional[requests.Response] = self.get()
+        if response is None:
+            logging.info('<Запрос к API не удался>')
+            return []
+        try:
+            response_json = response.json()
+
+        except ValueError:
+            logging.info('<Не получилось закодировать в JSON>')
+            return []
+
+        except Exception as e:
+            logging.info(f'Ошибка: {e}')
+            return []
+
+        return list(response_json.keys())
+
+    def get_sw_info(self, sw_type: str) -> Optional[requests.Response]:
+        available_categories: list = self.get_sw_categories()
+        if sw_type in available_categories:
+            endpoint: str = sw_type.lstrip('/')
+            response: Optional[requests.Response] = self.get(
+                endpoint.rstrip('/') + '/'
+            )
+            if response is None:
+                logging.error('Ошибка в запросе')
+            return response
+        else:
+            logging.error(
+                f'<Этой категории - {sw_type} нет '
+                'в доступных: {available_categories}>'
+                )
+            return None
+
+
+api_swapi = SWRequester()
+print(api_swapi.get_sw_categories())
